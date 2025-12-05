@@ -33,7 +33,7 @@ augmentation_transforms = transforms.Compose([
 ])
 
 # Augmentation function
-def augment_class_folder(class_name):
+def augment_class_folder(class_name, min_target_count=500):
     src_folder = os.path.join(base_path, class_name)
     dst_folder = os.path.join(augmented_base_path, class_name)  # now inside ./augmented_data/
     os.makedirs(dst_folder, exist_ok=True)
@@ -45,28 +45,50 @@ def augment_class_folder(class_name):
     for img_name in original_images:
         src_path = os.path.join(src_folder, img_name)
         dst_path = os.path.join(dst_folder, img_name)
-        shutil.copy(src_path, dst_path)
+        if not os.path.exists(dst_path):  # avoid duplicates
+            try:
+                # Validate image before copying
+                img = Image.open(src_path)
+                img.verify()  # Verify it's a valid image
+                img.close()
+                shutil.copy(src_path, dst_path)
+            except Exception as e:
+                print(f"Skipped invalid image {src_path}: {e}")
 
-    # Create one augmented version for each original image
-    for img_name in original_images:
-        src_path = os.path.join(src_folder, img_name)
-        try:
-            img = Image.open(src_path).convert("RGB")
-        except Exception as e:
-            print(f"Error loading image {src_path}: {e}")
-            continue
+    # Keep augmenting until we reach at least 500 images
+    aug_counter = 1
+    while len(os.listdir(dst_folder)) < min_target_count:
+        for img_name in original_images:
 
-        augmented_img = augmentation_transforms(img)
+            src_path = os.path.join(src_folder, img_name)
+            try:
+                img = Image.open(src_path).convert("RGB")
+            except Exception as e:
+                print(f"Skipped invalid image {src_path}: {e}")
+                continue
 
-        base_name, ext = os.path.splitext(img_name)
-        new_name = f"{base_name}_aug{ext}"
-        dst_path = os.path.join(dst_folder, new_name)
-        augmented_img.save(dst_path)
+            augmented_img = augmentation_transforms(img)
+
+            base_name, ext = os.path.splitext(img_name)
+            new_name = f"{base_name}_aug{aug_counter}{ext}"
+            dst_path = os.path.join(dst_folder, new_name)
+
+            # Skip if file already exists
+            if not os.path.exists(dst_path):
+                augmented_img.save(dst_path)
+            else:
+                print(f"Skipped existing file: {dst_path}")
+
+        aug_counter += 1
+        print(
+            f"{class_name}: {len(os.listdir(dst_folder))} images (round {aug_counter})"
+        )
 
     print(f"{class_name} augmented to {len(os.listdir(dst_folder))} images.")
 
+
 # Run for all classes
 for cls in classes:
-    augment_class_folder(cls)
+    augment_class_folder(cls, min_target_count=500)
 
 print(f"\n✅ All augmented data saved in: {os.path.abspath(augmented_base_path)}")
