@@ -57,7 +57,9 @@ def augment_class_folder(class_name, min_target_count=500):
 
     # Keep augmenting until we reach at least 500 images
     aug_counter = 1
-    while len(os.listdir(dst_folder)) < min_target_count:
+
+    # execute at least once
+    while True:
         for img_name in original_images:
 
             src_path = os.path.join(src_folder, img_name)
@@ -80,9 +82,11 @@ def augment_class_folder(class_name, min_target_count=500):
                 print(f"Skipped existing file: {dst_path}")
 
         aug_counter += 1
-        print(
-            f"{class_name}: {len(os.listdir(dst_folder))} images (round {aug_counter})"
-        )
+        print(f"{class_name}: {len(os.listdir(dst_folder))} images (round {aug_counter})")
+
+        # Check condition after processing
+        if len(os.listdir(dst_folder)) >= min_target_count:
+            break
 
     print(f"{class_name} augmented to {len(os.listdir(dst_folder))} images.")
 
