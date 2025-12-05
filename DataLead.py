@@ -8,7 +8,7 @@ import random
 base_path = "./data/"  # original data folder
 
 # Augmented data will be saved at the same level as 'data'
-augmented_base_path = "./Augmented_data/"  # <-- outside ./data/
+augmented_base_path = "./augmented_data/"  # <-- outside ./data/
 os.makedirs(augmented_base_path, exist_ok=True)
 
 classes = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
@@ -35,7 +35,7 @@ augmentation_transforms = transforms.Compose([
 # Augmentation function
 def augment_class_folder(class_name, target_count=500):
     src_folder = os.path.join(base_path, class_name)
-    dst_folder = os.path.join(augmented_base_path, class_name)  # now inside ./Augmented_data/
+    dst_folder = os.path.join(augmented_base_path, class_name)  # now inside ./augmented_data/
     os.makedirs(dst_folder, exist_ok=True)
 
     # List original images
@@ -51,7 +51,11 @@ def augment_class_folder(class_name, target_count=500):
     while len(os.listdir(dst_folder)) < target_count:
         img_name = random.choice(original_images)
         src_path = os.path.join(src_folder, img_name)
-        img = Image.open(src_path).convert("RGB")
+        try:
+            img = Image.open(src_path).convert("RGB")
+        except Exception as e:
+            print(f"Error loading image {src_path}: {e}")
+            continue
 
         augmented_img = augmentation_transforms(img)
 
