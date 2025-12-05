@@ -33,7 +33,7 @@ augmentation_transforms = transforms.Compose([
 ])
 
 # Augmentation function
-def augment_class_folder(class_name, target_count=500):
+def augment_class_folder(class_name):
     src_folder = os.path.join(base_path, class_name)
     dst_folder = os.path.join(augmented_base_path, class_name)  # now inside ./augmented_data/
     os.makedirs(dst_folder, exist_ok=True)
@@ -47,9 +47,8 @@ def augment_class_folder(class_name, target_count=500):
         dst_path = os.path.join(dst_folder, img_name)
         shutil.copy(src_path, dst_path)
 
-    # Augment until we reach target_count
-    while len(os.listdir(dst_folder)) < target_count:
-        img_name = random.choice(original_images)
+    # Create one augmented version for each original image
+    for img_name in original_images:
         src_path = os.path.join(src_folder, img_name)
         try:
             img = Image.open(src_path).convert("RGB")
@@ -60,7 +59,7 @@ def augment_class_folder(class_name, target_count=500):
         augmented_img = augmentation_transforms(img)
 
         base_name, ext = os.path.splitext(img_name)
-        new_name = f"{base_name}_aug_{len(os.listdir(dst_folder))}{ext}"
+        new_name = f"{base_name}_aug{ext}"
         dst_path = os.path.join(dst_folder, new_name)
         augmented_img.save(dst_path)
 
@@ -68,6 +67,6 @@ def augment_class_folder(class_name, target_count=500):
 
 # Run for all classes
 for cls in classes:
-    augment_class_folder(cls, target_count=500)
+    augment_class_folder(cls)
 
 print(f"\n✅ All augmented data saved in: {os.path.abspath(augmented_base_path)}")
