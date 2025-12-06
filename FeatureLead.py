@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import cv2
-from PIL import Image
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 import pandas as pd
