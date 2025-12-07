@@ -1,2 +1,4 @@
 data/*
 augmented_data/*
+.venv/
+features/
