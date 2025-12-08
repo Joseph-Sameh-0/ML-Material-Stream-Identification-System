@@ -29,9 +29,9 @@ def extract_color_histogram(image, bins=32):
 
 
 def extract_hog_features(grayscale_image):
-    resized_image = cv2.resize(grayscale_image, (128, 128))
+    resized_image = cv2.resize(grayscale_image, (64, 64))
     hog_descriptor = cv2.HOGDescriptor(
-        _winSize=(128, 128),
+        _winSize=(64, 64),
         _blockSize=(16, 16),
         _blockStride=(8, 8),
         _cellSize=(8, 8),
