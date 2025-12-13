@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split, GridSearchCV
-
+from sklearn.decomposition import PCA
 from FeatureLead import load_features
 
 # ---------------------------------------------------------------
@@ -23,7 +23,7 @@ print(f"Loaded labels: {y.shape}")
 # X = scaler.transform(X)
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.20, random_state=42
+    X, y, test_size=0.20, random_state=42, stratify=y
 )
 
 
@@ -43,7 +43,8 @@ svm_model = SVC(
     C=10,
     kernel="rbf",
     gamma="scale",
-    probability=True
+    probability=True,
+    class_weight="balanced"
 )
 
 
@@ -104,6 +105,17 @@ svm_model = SVC(
 # plt.title("2D PCA projection of features")
 # plt.show()
 
+from sklearn.decomposition import PCA
+
+# Keep 85% variance (sweet spot for this dataset)
+# pca = PCA(n_components=0.85, random_state=42)
+
+# X_train_pca = pca.fit_transform(X_train)
+# X_test_pca = pca.transform(X_test)
+
+# print("Original dim:", X_train.shape[1])
+# print("Reduced dim:", X_train_pca.shape[1])
+# print("pca components:", pca.n_components_)
 
 print("\nTraining SVM (RBF kernel)...")
 svm_model.fit(X_train, y_train)
