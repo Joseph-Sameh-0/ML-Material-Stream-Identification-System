@@ -29,6 +29,17 @@ def extract_color_histogram(image, bins=16):
     return np.array(histogram_features)
 
 
+def extract_color_moments(image):
+    moments = []
+    for channel in range(3):
+        channel_data = image[:, :, channel].flatten()
+        mean = np.mean(channel_data)
+        std = np.std(channel_data)
+        skewness = np.mean(((channel_data - mean) / (std + 1e-7)) ** 3)
+        moments.extend([mean, std, skewness])
+    return np.array(moments)
+
+
 def extract_hog_features(grayscale_image):
     resized_image = cv2.resize(grayscale_image, (32, 32))
     hog_descriptor = cv2.HOGDescriptor(
@@ -59,9 +70,36 @@ def extract_texture_features(grayscale_image):
     return np.array(statistical_features)
 
 
+def extract_lbp_features(grayscale_image, num_points=24, radius=3):
+    resized_image = cv2.resize(grayscale_image, (128, 128))
+
+    lbp_image = np.zeros_like(resized_image)
+    for i in range(radius, resized_image.shape[0] - radius):
+        for j in range(radius, resized_image.shape[1] - radius):
+            center = resized_image[i, j]
+            binary_string = ''
+
+            neighbors = [
+                resized_image[i-radius, j-radius], resized_image[i-radius, j],
+                resized_image[i-radius, j+radius], resized_image[i, j+radius],
+                resized_image[i+radius, j+radius], resized_image[i+radius, j],
+                resized_image[i+radius, j-radius], resized_image[i, j-radius]
+            ]
+            for neighbor in neighbors:
+                binary_string += '1' if neighbor >= center else '0'
+            lbp_image[i, j] = int(binary_string, 2)
+
+    hist, _ = np.histogram(lbp_image.ravel(), bins=32, range=(0, 256))
+    hist = hist.astype(float)
+    hist = hist / (hist.sum() + 1e-7)
+
+    return hist
+
+
 def extract_shape_features(grayscale_image):
-    resized_image = cv2.resize(grayscale_image, (64, 64))
+    resized_image = cv2.resize(grayscale_image, (128, 128))
     edges = cv2.Canny(resized_image, 50, 150)
+
     image_moments = cv2.moments(edges)
     hu_moments = cv2.HuMoments(image_moments).flatten()
     log_hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
@@ -69,7 +107,43 @@ def extract_shape_features(grayscale_image):
     intensity_mean = np.mean(resized_image)
     intensity_std = np.std(resized_image)
 
-    return np.concatenate([log_hu_moments, [intensity_mean, intensity_std]])
+    edge_density = np.sum(edges > 0) / edges.size
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    num_contours = len(contours)
+
+    avg_contour_area = 0
+    if num_contours > 0:
+        total_area = sum([cv2.contourArea(c) for c in contours])
+        avg_contour_area = total_area / num_contours
+
+    return np.concatenate([
+        log_hu_moments,
+        [intensity_mean, intensity_std, edge_density, num_contours, avg_contour_area]
+    ])
+
+
+def extract_material_features(rgb_image, grayscale_image):
+    brightness_var = np.var(grayscale_image)
+
+    hsv = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
+    saturation_mean = np.mean(hsv[:, :, 1])
+    saturation_std = np.std(hsv[:, :, 1])
+
+    value_mean = np.mean(hsv[:, :, 2])
+    value_std = np.std(hsv[:, :, 2])
+
+    hue_std = np.std(hsv[:, :, 0])
+
+    laplacian = cv2.Laplacian(grayscale_image, cv2.CV_64F)
+    smoothness = np.var(laplacian)
+
+    bright_pixels = np.sum(grayscale_image > 200) / grayscale_image.size
+
+    return np.array([
+        brightness_var, saturation_mean, saturation_std,
+        value_mean, value_std, hue_std, smoothness, bright_pixels
+    ])
 
 
 def extract_features_from_image(image_path):
@@ -82,11 +156,14 @@ def extract_features_from_image(image_path):
         grayscale_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
 
         color_features = extract_color_histogram(rgb_image, bins=16)
+        color_moments = extract_color_moments(rgb_image)
         hog_features = extract_hog_features(grayscale_image)
+        lbp_features = extract_lbp_features(grayscale_image)
         texture_features = extract_texture_features(grayscale_image)
         shape_features = extract_shape_features(grayscale_image)
+        material_features = extract_material_features(rgb_image, grayscale_image)
 
-        return color_features, hog_features, texture_features, shape_features
+        return color_features, color_moments, hog_features, lbp_features, texture_features, shape_features, material_features
     except Exception as e:
         print(f"Error processing {image_path}: {e}")
         return None
@@ -97,7 +174,10 @@ def process_dataset():
     color_list = []
     texture_list = []
     shape_list = []
-    
+    color_moments_list = []
+    material_list = []
+    lbp_list = []
+
     features_list = []
     labels_list = []
     filenames_list = []
@@ -123,27 +203,32 @@ def process_dataset():
             image_path = os.path.join(class_folder, image_filename)
 
             extracted_for_pca = extract_features_from_image(image_path)
-            color_features, hog_features, texture_features, shape_features = extracted_for_pca
+            color_features, color_moments, hog_features, lbp_features, texture_features, shape_features, material_features = extracted_for_pca
             full_features = np.concatenate(
-                [hog_features, color_features, texture_features, shape_features]
+                [hog_features, color_features, texture_features, shape_features, color_moments, material_features, lbp_features]
             )
             extracted_features = full_features
 
             if extracted_features is not None:
                 color_list.append(extracted_for_pca[0])
-                # print(extracted_features[0])
-                hog_list.append(extracted_for_pca[1])
-                texture_list.append(extracted_for_pca[2])
-                shape_list.append(extracted_for_pca[3])
+                color_moments_list.append(extracted_for_pca[1])
+                hog_list.append(extracted_for_pca[2])
+                lbp_list.append(extracted_for_pca[3])
+                texture_list.append(extracted_for_pca[4])
+                shape_list.append(extracted_for_pca[5])
+                material_list.append(extracted_for_pca[6])
 
-                features_list.append(np.concatenate([color_list[-1], hog_list[-1], texture_list[-1], shape_list[-1]]))
+                features_list.append(np.concatenate([color_list[-1], hog_list[-1], texture_list[-1], shape_list[-1], color_moments_list[-1], material_list[-1], lbp_list[-1]]))
                 labels_list.append(class_to_id[class_name])
                 filenames_list.append(image_path)
 
     hog = np.array(hog_list)
-    color = np.array(color_list)    
+    color = np.array(color_list)
     texture = np.array(texture_list)
     shape = np.array(shape_list)
+    color_momnts = np.array(color_moments_list)
+    material = np.array(material_list)
+    lbp = np.array(lbp_list)
     features_array = np.array(features_list)
     labels_array = np.array(labels_list)
 
@@ -154,9 +239,11 @@ def process_dataset():
     color_normalized = normalize(color, norm='l2')
     texture_normalized = normalize(texture, norm='l2')
     shape_normalized = normalize(shape, norm='l2')
+    color_moments_normalized = normalize(color_momnts, norm='l2')
+    material_normalized = normalize(material, norm='l2')
+    lbp_normalized = normalize(lbp, norm='l2')
 
-    X = np.hstack((hog_normalized, color_normalized, texture_normalized, shape_normalized))
-
+    X = np.hstack((hog_normalized, color_normalized, texture_normalized, shape_normalized, color_moments_normalized, material_normalized, lbp_normalized))
 
 
     print(f"\n{'='*60}")
