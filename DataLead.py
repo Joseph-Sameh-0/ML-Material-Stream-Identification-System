@@ -25,7 +25,7 @@ print("\nTotal images before augmentation:", sum(class_counts.values()))
 
 # Define augmentation pipeline
 augmentation_transforms = transforms.Compose([
-    transforms.RandomRotation(degrees=30),
+    transforms.RandomRotation(degrees=10),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomVerticalFlip(p=0.3),
     transforms.Resize((224, 224)),
@@ -55,12 +55,15 @@ def augment_class_folder(class_name, min_target_count=500):
             except Exception as e:
                 print(f"Skipped invalid image {src_path}: {e}")
 
-    # Keep augmenting until we reach at least 500 images
+    # Keep augmenting until we reach exactly 500 images
     aug_counter = 1
 
     # execute at least once
     while True:
         for img_name in original_images:
+
+            if len(os.listdir(dst_folder)) >= min_target_count:
+                break
 
             src_path = os.path.join(src_folder, img_name)
             try:
@@ -81,12 +84,12 @@ def augment_class_folder(class_name, min_target_count=500):
             else:
                 print(f"Skipped existing file: {dst_path}")
 
-        aug_counter += 1
-        print(f"{class_name}: {len(os.listdir(dst_folder))} images (round {aug_counter})")
-
-        # Check condition after processing
+        # Check if reached the target to exit
         if len(os.listdir(dst_folder)) >= min_target_count:
             break
+
+        aug_counter += 1
+        print(f"{class_name}: {len(os.listdir(dst_folder))} images (round {aug_counter})")
 
     print(f"{class_name} augmented to {len(os.listdir(dst_folder))} images.")
 
