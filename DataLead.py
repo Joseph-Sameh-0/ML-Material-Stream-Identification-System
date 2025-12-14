@@ -25,7 +25,7 @@ print("\nTotal images before augmentation:", sum(class_counts.values()))
 
 # Define augmentation pipeline
 augmentation_transforms = transforms.Compose([
-    transforms.RandomRotation(degrees=30),
+    transforms.RandomRotation(degrees=10),
     transforms.RandomHorizontalFlip(p=0.5),
     transforms.RandomVerticalFlip(p=0.3),
     transforms.Resize((224, 224)),
