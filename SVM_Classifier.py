@@ -19,8 +19,7 @@ print(f"Loaded labels: {y.shape}")
 # ---------------------------------------------------------------
 # second step => train / test Split
 # ---------------------------------------------------------------
-# scale features
-# X = scaler.transform(X)
+
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.20, random_state=42, stratify=y
@@ -48,74 +47,6 @@ svm_model = SVC(
 )
 
 
-# 3. Define SVM + hyperparameter grid (RBF kernel)
-# param_grid = {
-#     "C": [0.1, 1, 10],
-#     "gamma": ["scale", 0.01, 0.001],
-#     "kernel": ["rbf"]
-# }
-# base_svm = SVC(probability=True, class_weight="balanced")  # balanced helps class imbalance
-
-# grid = GridSearchCV(
-#     base_svm,
-#     param_grid,
-#     cv=3,
-#     n_jobs=-1,
-#     verbose=2
-# )
-
-# print("\nTraining SVM (RBF kernel)...")
-# grid.fit(X_train, y_train)
-
-# best_svm = grid.best_estimator_
-# print("Best params:", grid.best_params_)
-
-# # 4. Evaluate
-# y_pred = best_svm.predict(X_test)
-# print("Validation accuracy:", accuracy_score(y_test, y_pred))
-# print(classification_report(y_test, y_pred))
-# configs = [
-#     {"C": 1, "kernel": "rbf", "gamma": "scale"},
-#     {"C": 10, "kernel": "rbf", "gamma": "scale"},
-# ]
-
-# for C in [50]:
-#     svm = SVC(C=C, kernel="rbf", gamma= 0.005,
-#               probability=True, class_weight="balanced")
-#     svm.fit(X_train, y_train)
-#     y_pred = svm.predict(X_test)
-#     print("C =", C, "acc =", accuracy_score(y_test, y_pred))
-
-# print(X.var(axis=0)[:20])
-# print("NaNs:", np.isnan(X).sum())
-# print("Infs:", np.isinf(X).sum())
-
-# col_variances = X.var(axis=0)
-# print("Zero-variance features:", (col_variances == 0).sum())
-
-# print("Class counts:", np.bincount(y))
-
-# from sklearn.decomposition import PCA
-# import matplotlib.pyplot as plt
-
-# p = PCA(n_components=2)
-# X2 = p.fit_transform(X)
-
-# plt.scatter(X2[:,0], X2[:,1], c=y, s=5)
-# plt.title("2D PCA projection of features")
-# plt.show()
-
-from sklearn.decomposition import PCA
-
-# Keep 85% variance (sweet spot for this dataset)
-# pca = PCA(n_components=0.85, random_state=42)
-
-# X_train_pca = pca.fit_transform(X_train)
-# X_test_pca = pca.transform(X_test)
-
-# print("Original dim:", X_train.shape[1])
-# print("Reduced dim:", X_train_pca.shape[1])
-# print("pca components:", pca.n_components_)
 
 print("\nTraining SVM (RBF kernel)...")
 svm_model.fit(X_train, y_train)
