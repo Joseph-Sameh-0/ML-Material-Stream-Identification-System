@@ -22,7 +22,8 @@ print("=" * 60)
 print("Feature Extraction Pipeline")
 print("=" * 60)
 
-device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class CNNFeatureExtractor:
     def __init__(self):
