@@ -70,7 +70,7 @@ def extract_texture_features(grayscale_image):
     return np.array(statistical_features)
 
 
-def extract_lbp_features(grayscale_image, num_points=24, radius=3):
+def extract_lbp_features(grayscale_image, radius=3):
     resized_image = cv2.resize(grayscale_image, (128, 128))
 
     lbp_image = np.zeros_like(resized_image)
