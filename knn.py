@@ -1,72 +1,100 @@
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.decomposition import PCA
+from sklearn.metrics import accuracy_score, classification_report
 import joblib
-
-# --- TEAM INTEGRATION ---
 from FeatureLead import load_features
 
-# ==========================================
-# 1. LOAD DATA
-# ==========================================
-print("STATUS: Loading features...")
-X_scaled, y, final_scaler, class_mapping, _ = load_features()
+# --------------------------------------------------
+# 2. Load features and labels
+# --------------------------------------------------
+print("Loading features and labels from team's feature pipeline...")
+X, y, final_scaler, class_mapping, _ = load_features()
 
-# ==========================================
-# 1.5 DATA INSPECTION (Quick Check)
-# ==========================================
-n_samples, n_features = X_scaled.shape
-print(f"📊 Original Data: {n_samples} samples, {n_features} features")
-
-# Splitting Data
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.1, random_state=42
+# --------------------------------------------------
+# 3. Split data: 80% training, 20% validation
+# --------------------------------------------------
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ==========================================
-# 🔥 2. DIMENSIONALITY REDUCTION (PCA) - الخطوة الجديدة المهمة
-# ==========================================
-print("\nSTATUS: Applying PCA to reduce dimensions and remove noise...")
-
-# نطلب من PCA الاحتفاظ بـ 95% من المعلومات المهمة وحذف الباقي
-pca = PCA(n_components=0.412)
-
-# نتعلم الاختصار من بيانات التدريب فقط
-X_train_pca = pca.fit_transform(X_train)
-# نطبق نفس الاختصار على بيانات الاختبار
-X_test_pca = pca.transform(X_test)
-
-n_components = X_train_pca.shape[1]
-print(f"✅ PCA Reduction Complete:")
-print(f"   - Features reduced from {n_features} to {n_components}")
-print(f"   - We kept 95% of the important information.")
-
-# ==========================================
-# 3. SEARCH FOR OPTIMAL k (Tuning) on REDUCED DATA
-# ==========================================
-print("\nSTATUS: Searching for the best k using PCA features...")
-
+# --------------------------------------------------
+# 4. Train k-NN and find the best k
+# --------------------------------------------------
+print("Searching for the best k value...")
 best_k = 1
-best_accuracy = 0
-final_model = None
+best_acc = 0
+best_model = None
 
-# نجرب الـ k على البيانات المختصرة (X_train_pca)
 for k in range(3, 30, 2):
-    knn = KNeighborsClassifier(n_neighbors=k, weights='distance')
-    knn.fit(X_train_pca, y_train) # Training on reduced data
-
-    score = knn.score(X_test_pca, y_test) # Testing on reduced data
-
-    if score > best_accuracy:
-        best_accuracy = score
+    model = KNeighborsClassifier(n_neighbors=k, weights='distance')
+    model.fit(X_train, y_train)
+    acc = model.score(X_val, y_val)
+    if acc > best_acc:
+        best_acc = acc
         best_k = k
-        final_model = knn
+        best_model = model
 
-print(f"\n✅ Optimal k found: {best_k} with Accuracy: {best_accuracy:.4f}")
+print(f"Best k = {best_k} → Validation Accuracy (on classes 0–5): = {best_acc:.4f}")
 
-if best_accuracy >= 0.85:
-    print("🎉 GOAL ACHIEVED! Accuracy > 0.85")
+if best_acc >= 0.85:
+    print("🎉 Target accuracy (≥ 0.85) achieved!")
 else:
-    print(f"⚠️ Accuracy is {best_accuracy:.4f}. It improved, but check features quality.")
+    print("⚠️ Accuracy is below 0.85 — consider improving feature quality.")
+
+# --------------------------------------------------
+# 6. Prepare Rejection Mechanism (for real-time deployment)
+# --------------------------------------------------
+# Compute rejection threshold from validation set distances
+distances, _ = best_model.kneighbors(X_val)
+min_distances = distances[:, 0]
+threshold = np.percentile(min_distances, 90)
+print(f"\n📌 Rejection Threshold (for real-time use): {threshold:.4f}")
+
+# Classification function with rejection (for Unknown class = 6)
+def classify_with_rejection(model, X, thresh):
+    dists, _ = model.kneighbors(X)
+    preds = model.predict(X)
+    preds[dists[:, 0] > thresh] = 6  # Assign Unknown (class 6)
+    return preds
+
+# --------------------------------------------------
+# 7. 🧪 Test Rejection Mechanism using synthetic samples
+# --------------------------------------------------
+print("\n" + "="*50)
+print("🧪 Testing Rejection Mechanism with synthetic data")
+print("="*50)
+
+# Real sample (should NOT be rejected)
+real_sample = X_val[0:1]
+
+# Fake/Noisy sample (should BE rejected)
+np.random.seed(42)
+fake_sample = real_sample + np.random.normal(0, 10, size=real_sample.shape)
+
+# Classify both
+pred_real = classify_with_rejection(best_model, real_sample, threshold)
+pred_fake = classify_with_rejection(best_model, fake_sample, threshold)
+
+print(f"Real sample → Prediction: {pred_real[0]}")
+print(f"Noisy sample → Prediction: {pred_fake[0]}")
+
+# Verify behavior
+if pred_real[0] != 6:
+    print("✅ Real sample was NOT rejected (correct!)")
+else:
+    print("⚠️ Real sample was incorrectly rejected! Threshold may be too low.")
+
+if pred_fake[0] == 6:
+    print("✅ Noisy sample was correctly rejected (rejection mechanism works!)")
+else:
+    print("⚠️ Noisy sample was NOT rejected! Threshold may be too high.")
+
+# --------------------------------------------------
+# 8. Save required files for submission and deployment
+# --------------------------------------------------
+# joblib.dump(best_model, 'knn_model.pkl')
+# joblib.dump(threshold, 'knn_rejection_threshold.pkl')
+# print("\n💾 Saved: knn_model.pkl + knn_rejection_threshold.pkl")
+#
+# print("\n✅ Code is ready for submission and real-time integration!")
