@@ -4,22 +4,29 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 from FeatureLead import load_features
+import os
+from sklearn.decomposition import PCA
+from FeatureLead import extract_features_from_image
 
 # --------------------------------------------------
-# 2. Load features and labels
+# 1. Load features and labels
+#    => Load pre-extracted features from FeatureLead pipeline
 # --------------------------------------------------
 print("Loading features and labels from team's feature pipeline...")
 X, y, final_scaler, class_mapping, _ = load_features()
 
 # --------------------------------------------------
-# 3. Split data: 80% training, 20% validation
+# 2. Split data: 80% training, 20% validation
+#    => Stratified split to maintain class balance
 # --------------------------------------------------
 X_train, X_val, y_train, y_val = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
 # --------------------------------------------------
-# 4. Train k-NN and find the best k
+# 3. Train k-NN and find the best k
+#    => k-NN with 'distance' weights gives better importance to closer neighbors
+#    => Search odd k values from 3 to 29 to avoid ties
 # --------------------------------------------------
 print("Searching for the best k value...")
 best_k = 1
@@ -43,15 +50,16 @@ else:
     print("⚠️ Accuracy is below 0.85 — consider improving feature quality.")
 
 # --------------------------------------------------
-# 6. Prepare Rejection Mechanism (for real-time deployment)
+# 4. Prepare Rejection Mechanism (for real-time deployment)
+#    => Reject samples that are too far from known training data
+#    => Use 90th percentile of nearest-neighbor distances as threshold
 # --------------------------------------------------
-# Compute rejection threshold from validation set distances
 distances, _ = best_model.kneighbors(X_val)
 min_distances = distances[:, 0]
 threshold = np.percentile(min_distances, 90)
 print(f"\n📌 Rejection Threshold (for real-time use): {threshold:.4f}")
 
-# Classification function with rejection (for Unknown class = 6)
+# Classification function with rejection (Unknown class = 6)
 def classify_with_rejection(model, X, thresh):
     dists, _ = model.kneighbors(X)
     preds = model.predict(X)
@@ -59,42 +67,45 @@ def classify_with_rejection(model, X, thresh):
     return preds
 
 # --------------------------------------------------
-# 7. 🧪 Test Rejection Mechanism using synthetic samples
+# 5. Save model and preprocessing objects
+#    => Save all required components for standalone inference later
+#    => Includes: KNN model, HOG-PCA, scaler, threshold, and class mapping
 # --------------------------------------------------
-print("\n" + "="*50)
-print("🧪 Testing Rejection Mechanism with synthetic data")
-print("="*50)
+print("\n💾 Saving model and preprocessing objects...")
 
-# Real sample (should NOT be rejected)
-real_sample = X_val[0:1]
+# Rebuild HOG-PCA from original images (to match training pipeline)
+hog_samples = []
+count = 0
+classes_local = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+for cls in classes_local:
+    folder = os.path.join("./augmented_data/", cls)
+    if not os.path.exists(folder):
+        continue
+    for f in os.listdir(folder):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+            feats = extract_features_from_image(os.path.join(folder, f))
+            if feats:
+                hog_samples.append(feats[2])  # HOG features (index 2)
+                count += 1
+                if count >= 100:
+                    break
+    if count >= 100:
+        break
 
-# Fake/Noisy sample (should BE rejected)
-np.random.seed(42)
-fake_sample = real_sample + np.random.normal(0, 10, size=real_sample.shape)
+hog_pca = PCA(n_components=70, whiten=True, random_state=42)
+hog_pca.fit(np.array(hog_samples))
 
-# Classify both
-pred_real = classify_with_rejection(best_model, real_sample, threshold)
-pred_fake = classify_with_rejection(best_model, fake_sample, threshold)
+# Save all components to 'models/' directory
+os.makedirs("models", exist_ok=True)
+joblib.dump(best_model, "models/knn_model.pkl")
+joblib.dump(hog_pca, "models/hog_pca.pkl")
+joblib.dump(final_scaler, "models/scaler.pkl")
+joblib.dump(threshold, "models/threshold.pkl")
+joblib.dump(class_mapping, "models/class_mapping.pkl")
 
-print(f"Real sample → Prediction: {pred_real[0]}")
-print(f"Noisy sample → Prediction: {pred_fake[0]}")
-
-# Verify behavior
-if pred_real[0] != 6:
-    print("✅ Real sample was NOT rejected (correct!)")
-else:
-    print("⚠️ Real sample was incorrectly rejected! Threshold may be too low.")
-
-if pred_fake[0] == 6:
-    print("✅ Noisy sample was correctly rejected (rejection mechanism works!)")
-else:
-    print("⚠️ Noisy sample was NOT rejected! Threshold may be too high.")
-
-# --------------------------------------------------
-# 8. Save required files for submission and deployment
-# --------------------------------------------------
-# joblib.dump(best_model, 'knn_model.pkl')
-# joblib.dump(threshold, 'knn_rejection_threshold.pkl')
-# print("\n💾 Saved: knn_model.pkl + knn_rejection_threshold.pkl")
-#
-# print("\n✅ Code is ready for submission and real-time integration!")
+print("✅ All components saved in 'models/' folder:")
+print("   - knn_model.pkl        # Trained KNN classifier")
+print("   - hog_pca.pkl          # PCA transformer for HOG features")
+print("   - scaler.pkl           # Feature standard scaler")
+print("   - threshold.pkl        # Rejection threshold (90th percentile)")
+print("   - class_mapping.pkl    # Mapping from class name to ID")
