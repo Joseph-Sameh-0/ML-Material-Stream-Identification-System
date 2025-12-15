@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
+from multiprocessing import Pool, cpu_count
 
 
 # Base path to augmented data
@@ -46,7 +47,7 @@ class CNNFeatureExtractor:
             ]
         )
 
-        print(f"Model loaded successfully. Feature dimension: {self.feature_dim}")
+        print(f"\nModel loaded successfully. Feature dimension: {self.feature_dim}")
 
     def extract_features(self, image_path):
         try:
@@ -65,39 +66,57 @@ class CNNFeatureExtractor:
             return None
 
 
-def process_dataset():
+def process_single_class(class_name):
     feature_extractor = CNNFeatureExtractor()
+
+    class_folder = os.path.join(augmented_base_path, class_name)
+
+    if not os.path.exists(class_folder):
+        print(f"Warning: Folder {class_folder} not found. Skipping.")
+        return [], [], []
+
+    image_files = [
+        filename
+        for filename in os.listdir(class_folder)
+        if filename.lower().endswith((".png", ".jpg", ".jpeg"))
+    ]
+
+    print(f"Processing {class_name}: {len(image_files)} images")
 
     features_list = []
     labels_list = []
     filenames_list = []
 
-    print("\nProcessing images and extracting features...\n")
+    for image_filename in tqdm(image_files, desc=f"  {class_name}", ncols=80):
+        image_path = os.path.join(class_folder, image_filename)
 
-    for class_name in classes:
-        class_folder = os.path.join(augmented_base_path, class_name)
+        extracted_features = feature_extractor.extract_features(image_path)
 
-        if not os.path.exists(class_folder):
-            print(f"Warning: Folder {class_folder} not found. Skipping.")
-            continue
+        if extracted_features is not None:
+            features_list.append(extracted_features)
+            labels_list.append(class_to_id[class_name])
+            filenames_list.append(image_path)
 
-        image_files = [
-            filename
-            for filename in os.listdir(class_folder)
-            if filename.lower().endswith((".png", ".jpg", ".jpeg"))
-        ]
+    return features_list, labels_list, filenames_list
 
-        print(f"Processing {class_name}: {len(image_files)} images")
 
-        for image_filename in tqdm(image_files, desc=f"  {class_name}", ncols=80):
-            image_path = os.path.join(class_folder, image_filename)
+def process_dataset():
+    print("\nProcessing images and extracting features in parallel...\n")
+    print(f"Using {cpu_count()} CPU cores for parallel processing\n")
 
-            extracted_features = feature_extractor.extract_features(image_path)
+    # Process all classes in parallel
+    with Pool(processes=min(len(classes), cpu_count())) as pool:
+        results = pool.map(process_single_class, classes)
 
-            if extracted_features is not None:
-                features_list.append(extracted_features)
-                labels_list.append(class_to_id[class_name])
-                filenames_list.append(image_path)
+    # Combine results from all classes
+    features_list = []
+    labels_list = []
+    filenames_list = []
+
+    for class_features, class_labels, class_filenames in results:
+        features_list.extend(class_features)
+        labels_list.extend(class_labels)
+        filenames_list.extend(class_filenames)
 
     features_array = np.array(features_list)
     labels_array = np.array(labels_list)
@@ -173,6 +192,11 @@ def load_features():
 
 
 if __name__ == "__main__":
+    # Required for multiprocessing on Windows
+    import multiprocessing
+
+    multiprocessing.freeze_support()
+
     if not os.path.exists(augmented_base_path):
         print(f"Error: Augmented data folder not found at {augmented_base_path}")
         print("Please run DataLead.py first to generate augmented data.")
