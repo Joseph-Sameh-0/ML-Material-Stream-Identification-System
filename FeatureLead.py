@@ -6,6 +6,7 @@ from tqdm import tqdm
 import pandas as pd
 import json
 from sklearn.decomposition import PCA
+import joblib
 
 # Base path to augmented data
 augmented_base_path = "./augmented_data/"
@@ -234,6 +235,7 @@ def process_dataset():
 
     pca = PCA(n_components=70, whiten=True, random_state=42)
     hog_pca = pca.fit_transform(hog)
+    joblib.dump(pca, "models/hog_pca.pkl")
 
     hog_normalized = normalize(hog_pca, norm='l2')
     color_normalized = normalize(color, norm='l2')

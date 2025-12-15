@@ -51,9 +51,9 @@ svm_model = SVC(
 print("\nTraining SVM (RBF kernel)...")
 svm_model.fit(X_train, y_train)
 
-# # ---------------------------------------------------------------
-# # fourth step => evaluate accuracy => must be >= 85%
-# # ---------------------------------------------------------------
+# ---------------------------------------------------------------
+# fourth step => evaluate accuracy => must be >= 85%
+# ---------------------------------------------------------------
 y_pred = svm_model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 
@@ -63,30 +63,27 @@ print(classification_report(y_test, y_pred, digits=4))
 
 # ---------------------------------------------------------------
 # fifth step => save the trained model + scaler
+# Trained Model Weights: The final saved classifier files (e.g., using Python serialization 
+# or model-specific file formats). 
 # ---------------------------------------------------------------
-# os.makedirs("models", exist_ok=True)
-# joblib.dump(svm_model, "models/svm_model.pkl")
-# joblib.dump(scaler, "models/scaler.pkl")
+os.makedirs("models", exist_ok=True)
+joblib.dump(svm_model, "models/svm_model.pkl")
+joblib.dump(scaler, "models/scaler.pkl")
 
-# print("\nSaved:")
-# print(" - models/svm_model.pkl")
-# print(" - models/scaler.pkl")
+print("\nSaved:")
+print(" - models/svm_model.pkl")
+print(" - models/scaler.pkl")
 
-# # ---------------------------------------------------------------
-# # sixth step => implement rejection function 
-# # ---------------------------------------------------------------
-# def predict_with_rejection(model, features, threshold=0.55):
-#     """
-#     Returns:
-#       - predicted class (0 - 5)
-#       - OR 6 (Unknown) if confidence < threshold
-#     """
-#     probs = model.predict_proba(features.reshape(1, -1))[0]
-#     best_class = np.argmax(probs)
-#     best_prob = probs[best_class]
+# ---------------------------------------------------------------
+# sixth step => implement rejection function 
+# ---------------------------------------------------------------
 
-#     if best_prob < threshold:
-#         return 6
-#     return best_class
+def predict_with_rejection(model, features, threshold=0.55):
+    probs = model.predict_proba(features)[0]
+    best_class = np.argmax(probs)
+    best_prob = probs[best_class]
+    if best_prob < threshold:
+        return 6, best_prob
+    return best_class, best_prob
 
-# print("\nModel training complete.")
+print("\nModel training complete.")
