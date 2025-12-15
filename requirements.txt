@@ -1,7 +1,6 @@
+torch
 torchvision
-opencv-python
 tqdm
 numpy
 pandas
-scikit-learn
-scikit-image
+joblib
