@@ -1,10 +1,14 @@
 import os
 import numpy as np
-import cv2
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 import pandas as pd
 import json
+import torch
+import torch.nn as nn
+from torchvision import models, transforms
+from PIL import Image
+
 
 # Base path to augmented data
 augmented_base_path = "./augmented_data/"
@@ -18,82 +22,59 @@ print("=" * 60)
 print("Feature Extraction Pipeline")
 print("=" * 60)
 
-
-def extract_color_histogram(image, bins=32):
-    histogram_features = []
-    for channel in range(3):
-        channel_hist = cv2.calcHist([image], [channel], None, [bins], [0, 256])
-        normalized_hist = cv2.normalize(channel_hist, channel_hist).flatten()
-        histogram_features.extend(normalized_hist)
-    return np.array(histogram_features)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def extract_hog_features(grayscale_image):
-    resized_image = cv2.resize(grayscale_image, (128, 128))
-    hog_descriptor = cv2.HOGDescriptor(
-        _winSize=(128, 128),
-        _blockSize=(16, 16),
-        _blockStride=(8, 8),
-        _cellSize=(8, 8),
-        _nbins=9,
-    )
-    return hog_descriptor.compute(resized_image).flatten()
+class CNNFeatureExtractor:
+    def __init__(self):
+        print(f"\nLoading pre-trained ResNet50 model...")
 
+        self.model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
+        self.model = nn.Sequential(*list(self.model.children())[:-1])
+        self.feature_dim = 2048
 
-def extract_texture_features(grayscale_image):
-    resized_image = cv2.resize(grayscale_image, (128, 128))
-    gradient_x = cv2.Sobel(resized_image, cv2.CV_64F, 1, 0, ksize=3)
-    gradient_y = cv2.Sobel(resized_image, cv2.CV_64F, 0, 1, ksize=3)
-    gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
+        self.model = self.model.to(device)
+        self.model.eval()
 
-    statistical_features = [
-        np.mean(gradient_magnitude),
-        np.std(gradient_magnitude),
-        np.percentile(gradient_magnitude, 25),
-        np.percentile(gradient_magnitude, 50),
-        np.percentile(gradient_magnitude, 75),
-        np.max(gradient_magnitude),
-        np.min(gradient_magnitude),
-    ]
-    return np.array(statistical_features)
-
-
-def extract_shape_features(grayscale_image):
-    resized_image = cv2.resize(grayscale_image, (64, 64))
-    edges = cv2.Canny(resized_image, 50, 150)
-    image_moments = cv2.moments(edges)
-    hu_moments = cv2.HuMoments(image_moments).flatten()
-    log_hu_moments = -np.sign(hu_moments) * np.log10(np.abs(hu_moments) + 1e-10)
-
-    intensity_mean = np.mean(resized_image)
-    intensity_std = np.std(resized_image)
-
-    return np.concatenate([log_hu_moments, [intensity_mean, intensity_std]])
-
-
-def extract_features_from_image(image_path):
-    try:
-        bgr_image = cv2.imread(image_path)
-        if bgr_image is None:
-            raise ValueError(f"Failed to load image: {image_path}")
-
-        rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-        grayscale_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
-
-        color_features = extract_color_histogram(rgb_image, bins=32)
-        hog_features = extract_hog_features(grayscale_image)
-        texture_features = extract_texture_features(grayscale_image)
-        shape_features = extract_shape_features(grayscale_image)
-
-        return np.concatenate(
-            [color_features, hog_features, texture_features, shape_features]
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
         )
-    except Exception as e:
-        print(f"Error processing {image_path}: {e}")
-        return None
+
+        print(f"Model loaded successfully. Feature dimension: {self.feature_dim}")
+
+    def extract_features(self, image_input):
+        try:
+            # Handle both file path (str) and PIL Image object
+            if isinstance(image_input, str):
+                image = Image.open(image_input).convert("RGB")
+            elif isinstance(image_input, Image.Image):
+                image = image_input.convert("RGB")
+            else:
+                raise ValueError("Input must be either a file path (str) or PIL Image object")
+
+            image_tensor = self.transform(image).unsqueeze(0)
+            image_tensor = image_tensor.to(device)
+
+            with torch.no_grad():
+                features = self.model(image_tensor)
+
+            features = features.squeeze().cpu().numpy()
+            return features
+
+        except Exception as e:
+            print(f"Error processing image: {e}")
+            return None
 
 
 def process_dataset():
+    feature_extractor = CNNFeatureExtractor()
+
     features_list = []
     labels_list = []
     filenames_list = []
@@ -117,7 +98,8 @@ def process_dataset():
 
         for image_filename in tqdm(image_files, desc=f"  {class_name}", ncols=80):
             image_path = os.path.join(class_folder, image_filename)
-            extracted_features = extract_features_from_image(image_path)
+
+            extracted_features = feature_extractor.extract_features(image_path)
 
             if extracted_features is not None:
                 features_list.append(extracted_features)
