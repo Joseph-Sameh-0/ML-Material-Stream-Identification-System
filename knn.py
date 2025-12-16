@@ -1,72 +1,53 @@
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.decomposition import PCA
 import joblib
-
-# --- TEAM INTEGRATION ---
 from FeatureLead import load_features
+import os
 
-# ==========================================
-# 1. LOAD DATA
-# ==========================================
-print("STATUS: Loading features...")
-X_scaled, y, final_scaler, class_mapping, _ = load_features()
+# --------------------------------------------------
+# 1. Load CNN-extracted features (2048-D from ResNet50)
+# --------------------------------------------------
+print("Loading CNN features from FeatureLead pipeline...")
+X, y, final_scaler, class_mapping, _ = load_features()
 
-# ==========================================
-# 1.5 DATA INSPECTION (Quick Check)
-# ==========================================
-n_samples, n_features = X_scaled.shape
-print(f"📊 Original Data: {n_samples} samples, {n_features} features")
-
-# Splitting Data
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.1, random_state=42
+# --------------------------------------------------
+# 2. Split data: 80% train, 20% validation
+# --------------------------------------------------
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ==========================================
-# 🔥 2. DIMENSIONALITY REDUCTION (PCA) - الخطوة الجديدة المهمة
-# ==========================================
-print("\nSTATUS: Applying PCA to reduce dimensions and remove noise...")
+# --------------------------------------------------
+# 3. Train k-NN and find best k
+# --------------------------------------------------
+print("Searching for the best k...")
+best_k, best_acc, best_model = 1, 0, None
 
-# نطلب من PCA الاحتفاظ بـ 95% من المعلومات المهمة وحذف الباقي
-pca = PCA(n_components=0.412)
-
-# نتعلم الاختصار من بيانات التدريب فقط
-X_train_pca = pca.fit_transform(X_train)
-# نطبق نفس الاختصار على بيانات الاختبار
-X_test_pca = pca.transform(X_test)
-
-n_components = X_train_pca.shape[1]
-print(f"✅ PCA Reduction Complete:")
-print(f"   - Features reduced from {n_features} to {n_components}")
-print(f"   - We kept 95% of the important information.")
-
-# ==========================================
-# 3. SEARCH FOR OPTIMAL k (Tuning) on REDUCED DATA
-# ==========================================
-print("\nSTATUS: Searching for the best k using PCA features...")
-
-best_k = 1
-best_accuracy = 0
-final_model = None
-
-# نجرب الـ k على البيانات المختصرة (X_train_pca)
 for k in range(3, 30, 2):
-    knn = KNeighborsClassifier(n_neighbors=k, weights='distance')
-    knn.fit(X_train_pca, y_train) # Training on reduced data
+    model = KNeighborsClassifier(n_neighbors=k, weights='distance')
+    model.fit(X_train, y_train)
+    acc = model.score(X_val, y_val)
+    if acc > best_acc:
+        best_acc, best_k, best_model = acc, k, model
 
-    score = knn.score(X_test_pca, y_test) # Testing on reduced data
+print(f"Best k = {best_k} → Validation Accuracy: {best_acc:.4f}")
 
-    if score > best_accuracy:
-        best_accuracy = score
-        best_k = k
-        final_model = knn
+# --------------------------------------------------
+# 4. Compute rejection threshold (90th percentile)
+# --------------------------------------------------
+distances, _ = best_model.kneighbors(X_val)
+threshold = np.percentile(distances[:, 0], 90)
+print(f"\n📌 Rejection Threshold: {threshold:.4f}")
 
-print(f"\n✅ Optimal k found: {best_k} with Accuracy: {best_accuracy:.4f}")
+# --------------------------------------------------
+# 5. Save only what's needed (NO HOG-PCA anymore)
+# --------------------------------------------------
+print("\n💾 Saving model components...")
+os.makedirs("models", exist_ok=True)
+joblib.dump(best_model, "models/knn_model.pkl")
+joblib.dump(final_scaler, "models/scaler.pkl")
+joblib.dump(threshold, "models/threshold.pkl")
+joblib.dump(class_mapping, "models/class_mapping.pkl")
 
-if best_accuracy >= 0.85:
-    print("🎉 GOAL ACHIEVED! Accuracy > 0.85")
-else:
-    print(f"⚠️ Accuracy is {best_accuracy:.4f}. It improved, but check features quality.")
+print("✅ Saved: knn_model.pkl, scaler.pkl, threshold.pkl, class_mapping.pkl")
