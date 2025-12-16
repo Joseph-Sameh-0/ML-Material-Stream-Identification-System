@@ -49,5 +49,5 @@ joblib.dump(best_model, "models/knn_model.pkl")
 joblib.dump(final_scaler, "models/scaler.pkl")
 joblib.dump(threshold, "models/threshold.pkl")
 joblib.dump(class_mapping, "models/class_mapping.pkl")
-
 print("✅ Saved: knn_model.pkl, scaler.pkl, threshold.pkl, class_mapping.pkl")
+
