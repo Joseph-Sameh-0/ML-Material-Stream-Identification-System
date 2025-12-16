@@ -48,9 +48,16 @@ class CNNFeatureExtractor:
 
         print(f"Model loaded successfully. Feature dimension: {self.feature_dim}")
 
-    def extract_features(self, image_path):
+    def extract_features(self, image_input):
         try:
-            image = Image.open(image_path).convert("RGB")
+            # Handle both file path (str) and PIL Image object
+            if isinstance(image_input, str):
+                image = Image.open(image_input).convert("RGB")
+            elif isinstance(image_input, Image.Image):
+                image = image_input.convert("RGB")
+            else:
+                raise ValueError("Input must be either a file path (str) or PIL Image object")
+
             image_tensor = self.transform(image).unsqueeze(0)
             image_tensor = image_tensor.to(device)
 
@@ -61,7 +68,7 @@ class CNNFeatureExtractor:
             return features
 
         except Exception as e:
-            print(f"Error processing {image_path}: {e}")
+            print(f"Error processing image: {e}")
             return None
 
 
