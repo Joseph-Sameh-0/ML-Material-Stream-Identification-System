@@ -23,6 +23,11 @@ for cls in classes:
 
 print("\nTotal images before augmentation:", sum(class_counts.values()))
 
+# Find the maximum count to use as target
+max_count = max(class_counts.values())
+print(f"\nMax class count: {max_count}")
+print(f"Target count for all classes: {max_count}\n")
+
 # Define augmentation pipeline
 augmentation_transforms = transforms.Compose([
     transforms.RandomRotation(degrees=10),
@@ -96,6 +101,6 @@ def augment_class_folder(class_name, min_target_count=500):
 
 # Run for all classes
 for cls in classes:
-    augment_class_folder(cls, min_target_count=500)
+    augment_class_folder(cls, min_target_count=max_count)
 
 print(f"\n✅ All augmented data saved in: {os.path.abspath(augmented_base_path)}")
