@@ -3,3 +3,4 @@ augmented_data/*
 .venv/
 features/
 __pycache__/
+models/
