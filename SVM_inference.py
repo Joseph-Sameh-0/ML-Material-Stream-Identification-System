@@ -2,9 +2,8 @@ import numpy as np
 import joblib
 from FeatureLead import CNNFeatureExtractor
 from SVM_Classifier import predict_with_rejection
-import os
 
-# load the trained SVM model
+# load the trained SVM model and scaler
 svm_model = joblib.load("models/svm_model.pkl")
 scaler = joblib.load("models/scaler.pkl")
 
@@ -22,7 +21,6 @@ def classify_image(image_path):
     scaled_features = scaler.transform(extracted)
 
     
-    # 5) Predict with rejection
     class_id, confidence = predict_with_rejection(svm_model, scaled_features, threshold=0.55)
     predicted_label = "unknown" if class_id == 6 else classes[class_id]
     return predicted_label, confidence
