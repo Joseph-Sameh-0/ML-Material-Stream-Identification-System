@@ -51,7 +51,7 @@ def predict_image(image_path):
 # --------------------------------------------------
 # Run prediction
 # --------------------------------------------------
-# image_path = "woman.jpeg"  # ← Change this to your image
+# image_path = "woman.jpeg"
 # image_path = "glass.jpg"
 # image_path = "cardboard.jpg"
 # image_path = "paper.jpg"
