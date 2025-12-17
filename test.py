@@ -5,7 +5,7 @@ import numpy as np
 import joblib
 
 from FeatureLead import CNNFeatureExtractor
-from SVM_Classifier import predict_with_rejection
+from SVM_inference import predict_with_rejection
 
 
 # Class index mapping (must match training)
@@ -48,3 +48,13 @@ def predict(dataFilePath, bestModelPath):
         predictions.append(int(class_id))
 
     return predictions
+
+
+if __name__ == "__main__":
+    dataFilePath = "test_images"
+    bestModelPath = "models/svm_model.pkl"
+
+    predictions = predict(dataFilePath, bestModelPath)
+
+    for img_name, class_id in zip(sorted(os.listdir(dataFilePath)), predictions):
+        print(f"{img_name}: {classes[class_id]} (ID: {class_id})")

@@ -1,17 +1,18 @@
 import numpy as np
 import joblib
 from FeatureLead import CNNFeatureExtractor
-from SVM_Classifier import predict_with_rejection
 
-# load the trained SVM model and scaler
-svm_model = joblib.load("models/svm_model.pkl")
-scaler = joblib.load("models/scaler.pkl")
+
 
 classes = ["cardboard", "glass", "metal", "paper", "plastic", "trash", "unknown"]
 
-feature_extractor = CNNFeatureExtractor()
 
 def classify_image(image_path):
+    svm_model = joblib.load("models/svm_model.pkl")
+    scaler = joblib.load("models/scaler.pkl")
+
+    feature_extractor = CNNFeatureExtractor()
+
     extracted = feature_extractor.extract_features(image_path)
     if extracted is None:
         return "unknown", 0.0
@@ -24,6 +25,15 @@ def classify_image(image_path):
     class_id, confidence = predict_with_rejection(svm_model, scaled_features, threshold=0.55)
     predicted_label = "unknown" if class_id == 6 else classes[class_id]
     return predicted_label, confidence
+
+def predict_with_rejection(model, features, threshold=0.55):
+    probs = model.predict_proba(features)[0]
+    best_class = np.argmax(probs)
+    best_prob = probs[best_class]
+    if best_prob < threshold:
+        return 6, best_prob
+    return best_class, best_prob
+
 
 
 if __name__ == "__main__":  

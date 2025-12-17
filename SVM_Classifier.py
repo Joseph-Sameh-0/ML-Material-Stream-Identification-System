@@ -56,13 +56,5 @@ print("\nSaved:")
 print(" - models/svm_model.pkl")
 print(" - models/scaler.pkl")
 
-# sixth step => define predict_with_rejection function
-def predict_with_rejection(model, features, threshold=0.55):
-    probs = model.predict_proba(features)[0]
-    best_class = np.argmax(probs)
-    best_prob = probs[best_class]
-    if best_prob < threshold:
-        return 6, best_prob
-    return best_class, best_prob
 
 print("\nModel training complete.")
