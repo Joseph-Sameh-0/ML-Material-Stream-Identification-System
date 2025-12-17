@@ -15,7 +15,7 @@ def main():
 
 
         if frame_counter % skip_frames == 0:
-            pil_image = frame_to_image(frame)
+            class_name, confidence = classify_image(pil_image)
 
         frame_counter += 1
         
