@@ -11,17 +11,17 @@ def main():
         success, frame = camera.read()
         if not success:
             break
+        pil_image = frame_to_image(frame)
+
+
         if frame_counter % skip_frames == 0:
             pil_image = frame_to_image(frame)
 
-
-        class_name, confidence = classify_image(pil_image)
-
+        frame_counter += 1
         
         # show result
         cv2.putText(frame, f"{class_name}: {confidence:.2f}", 
                     (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        frame_counter += 1
         
         # display
         cv2.imshow('Material Classifier', frame)
