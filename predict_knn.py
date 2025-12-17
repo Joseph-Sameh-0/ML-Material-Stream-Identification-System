@@ -51,13 +51,13 @@ def predict_image(image_path):
 # --------------------------------------------------
 # Run prediction
 # --------------------------------------------------
-# image_path = "woman.jpeg"
+image_path = "woman.jpeg"
 # image_path = "glass.jpg"
 # image_path = "cardboard.jpg"
 # image_path = "paper.jpg"
 # image_path = "plastic.jpg"
 # image_path = "metal.jpg"
-image_path = "boy.jpeg"
+# image_path = "boy.jpeg"
 if not os.path.exists(image_path):
     print(f"❌ Error: Image '{image_path}' not found!")
     exit(1)
