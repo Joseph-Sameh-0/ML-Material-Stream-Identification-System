@@ -20,6 +20,8 @@ scaler = joblib.load("models/scaler.pkl")
 threshold = joblib.load("models/threshold.pkl")
 classes = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 
+# Use the same CNN extractor as in FeatureLead
+extractor = CNNFeatureExtractor()
 
 # --------------------------------------------------
 # Prediction function
@@ -28,8 +30,6 @@ def predict_image(image_path):
     """
     Extract CNN features from image and classify using trained KNN.
     """
-    # Use the same CNN extractor as in FeatureLead
-    extractor = CNNFeatureExtractor()
     features = extractor.extract_features(image_path)
 
     if features is None:

@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 import joblib
 from FeatureLead import load_features
+from sklearn.metrics import classification_report
 import os
 
 # --------------------------------------------------
@@ -51,3 +52,10 @@ joblib.dump(threshold, "models/threshold.pkl")
 joblib.dump(class_mapping, "models/class_mapping.pkl")
 print("✅ Saved: knn_model.pkl, scaler.pkl, threshold.pkl, class_mapping.pkl")
 
+# --------------------------------------------------
+# 6. Detailed Evaluation (FOR REPORT)
+# --------------------------------------------------
+y_pred = best_model.predict(X_val)
+
+print("\nClassification Report (k-NN):")
+print(classification_report(y_val, y_pred))
