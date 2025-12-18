@@ -101,6 +101,6 @@ def augment_class_folder(class_name, min_target_count=500):
 
 # Run for all classes
 for cls in classes:
-    augment_class_folder(cls, min_target_count=max_count)
+    augment_class_folder(cls, min_target_count=max_count * 1.3)
 
 print(f"\n✅ All augmented data saved in: {os.path.abspath(augmented_base_path)}")
