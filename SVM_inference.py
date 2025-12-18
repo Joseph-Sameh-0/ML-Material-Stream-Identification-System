@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import joblib
 from FeatureLead import CNNFeatureExtractor
@@ -35,7 +36,23 @@ def predict_with_rejection(model, features, threshold=0.55):
 
 
 
-if __name__ == "__main__":  
-    test_image_path = "test_images/glass2.png"  
-    predicted_class, conf = classify_image(test_image_path)
-    print(f"Predicted Class: {predicted_class}, Confidence: {conf:.4f}")
+if __name__ == "__main__":
+    test_image_paths = [
+    "test_images/woman.jpeg",
+    "test_images/glass.jpg",
+    "test_images/glass2.png",
+    "test_images/cardboard.jpg",
+    "test_images/paper.jpg",
+    "test_images/plastic.jpg",
+    "test_images/metal.jpg",
+    "test_images/metal2.png",
+    "test_images/trash.jpg",
+    "test_images/boy.jpeg"
+    ]
+    for test_image_path in test_image_paths:
+        if not os.path.exists(test_image_path):
+            print(f"❌ Error: Image '{test_image_path}' not found!")
+            continue
+
+        predicted_class, conf = classify_image(test_image_path)
+        print(f"Image: {test_image_path}, Predicted Class: {predicted_class}, Confidence: {conf:.4f}")

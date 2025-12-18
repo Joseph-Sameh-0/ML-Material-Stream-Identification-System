@@ -23,17 +23,19 @@ classes = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 # Use the same CNN extractor as in FeatureLead
 extractor = CNNFeatureExtractor()
 
+
 # --------------------------------------------------
 # Prediction function
 # --------------------------------------------------
-def predict_image(image_path):
+def predict_with_rejection(image_path):
     """
     Extract CNN features from image and classify using trained KNN.
+    Returns (class_id, confidence)
     """
     features = extractor.extract_features(image_path)
 
     if features is None:
-        return "unknown"
+        return 6, 0.0
 
     # Preprocess exactly like during training
     features = features.reshape(1, -1)
@@ -44,23 +46,30 @@ def predict_image(image_path):
     pred = knn_model.predict(features_scaled)[0]
 
     if dists[0, 0] > threshold:
-        return "unknown"
-    return classes[pred]
+        return 6, dists[0, 0]
+    return int(pred), dists[0, 0]
 
 
 # --------------------------------------------------
 # Run prediction
 # --------------------------------------------------
-image_path = "woman.jpeg"
-# image_path = "glass.jpg"
-# image_path = "cardboard.jpg"
-# image_path = "paper.jpg"
-# image_path = "plastic.jpg"
-# image_path = "metal.jpg"
-# image_path = "boy.jpeg"
-if not os.path.exists(image_path):
-    print(f"❌ Error: Image '{image_path}' not found!")
-    exit(1)
+image_paths = [
+    "test_images/woman.jpeg",
+    "test_images/glass.jpg",
+    "test_images/glass2.png",
+    "test_images/cardboard.jpg",
+    "test_images/paper.jpg",
+    "test_images/plastic.jpg",
+    "test_images/metal.jpg",
+    "test_images/metal2.png",
+    "test_images/trash.jpg",
+    "test_images/boy.jpeg"
+    ]
+for image_path in image_paths:
+    if not os.path.exists(image_path):
+        print(f"❌ Error: Image '{image_path}' not found!")
+        continue
 
-result = predict_image(image_path)
-print(f"Predicted Class: {result}")
+    class_id, confidence = predict_with_rejection(image_path)
+    predicted_class = "unknown" if class_id == 6 else classes[class_id]
+    print(f"Image: {image_path}, Predicted Class: {predicted_class}, Confidence: {confidence:.4f}")

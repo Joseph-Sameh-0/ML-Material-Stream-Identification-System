@@ -18,10 +18,6 @@ os.makedirs(output_path, exist_ok=True)
 classes = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
 class_to_id = {cls: idx for idx, cls in enumerate(classes)}
 
-print("=" * 60)
-print("Feature Extraction Pipeline")
-print("=" * 60)
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -180,6 +176,10 @@ def load_features():
 
 
 if __name__ == "__main__":
+    print("=" * 60)
+    print("Feature Extraction Pipeline")
+    print("=" * 60)
+
     if not os.path.exists(augmented_base_path):
         print(f"Error: Augmented data folder not found at {augmented_base_path}")
         print("Please run DataLead.py first to generate augmented data.")
