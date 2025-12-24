@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import joblib
+import csv
 
 from FeatureLead import CNNFeatureExtractor
 from SVM_inference import predict_with_rejection
@@ -27,11 +28,11 @@ def predict(dataFilePath, bestModelPath):
     for img_name in image_files:
         img_path = os.path.join(dataFilePath, img_name)
 
-
         extracted = feature_extractor.extract_features(img_path)
 
         if extracted is None:
-            predictions.append(6)  # Unknown class
+            # Unknown class (index 6) and no confidence
+            predictions.append({"image": img_name, "class_id": 6, "confidence": 0.0})
             continue
 
         extracted = extracted.reshape(1, -1)
@@ -45,16 +46,30 @@ def predict(dataFilePath, bestModelPath):
             threshold=0.55
         )
 
-        predictions.append(int(class_id))
+        predictions.append({"image": img_name, "class_id": int(class_id), "confidence": float(confidence)})
 
     return predictions
 
 
 if __name__ == "__main__":
-    dataFilePath = "test_images"
+    dataFilePath = "test_images/"
     bestModelPath = "models/svm_model.pkl"
 
     predictions = predict(dataFilePath, bestModelPath)
 
-    for img_name, class_id in zip(sorted(os.listdir(dataFilePath)), predictions):
-        print(f"{img_name}: {classes[class_id]} (ID: {class_id})")
+    # Print results and export to CSV
+    out_csv = "predictions.csv"
+    with open(out_csv, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["image", "class_id", "class_name", "confidence"])
+        writer.writeheader()
+        for p in predictions:
+            class_name = classes[p["class_id"]]
+            print(f"{p['image']}: {class_name} (ID: {p['class_id']}) - conf: {p.get('confidence')}")
+            writer.writerow({
+                "image": p["image"],
+                "class_id": p["class_id"],
+                "class_name": class_name,
+                "confidence": p.get("confidence", "")
+            })
+
+    print(f"Wrote {len(predictions)} rows to {out_csv}")

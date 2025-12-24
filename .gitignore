@@ -4,3 +4,4 @@ augmented_data/*
 features/
 __pycache__/
 test_images/archive/*
+predictions.csv
