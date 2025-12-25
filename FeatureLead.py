@@ -54,13 +54,13 @@ class CNNFeatureExtractor:
             else:
                 raise ValueError("Input must be either a file path (str) or PIL Image object")
 
-            image_tensor = self.transform(image).unsqueeze(0)
+            image_tensor = self.transform(image).unsqueeze(0)  # from (3, 224, 224) to (1, 3, 224, 224)
             image_tensor = image_tensor.to(device)
 
             with torch.no_grad():
                 features = self.model(image_tensor)
 
-            features = features.squeeze().cpu().numpy()
+            features = features.squeeze().cpu().numpy() # from (1, 2048, 1, 1) to (2048,)
             return features
 
         except Exception as e:
